@@ -1,3 +1,6 @@
+"""
+Simple Application to test a servo's connection
+"""
 import RPi.GPIO as GPIO
 import time
 
