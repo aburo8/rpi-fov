@@ -34,10 +34,11 @@ pwmYaw = GPIO.PWM(yawServo, 50)
 pwmYaw.start(angle_to_duty_cycle(90))
 
 # Controller Inputs
-xboxController = evdev.InputDevice("/dev/input/event2")
+EVENT = 4
+xboxController = evdev.InputDevice(f"/dev/input/event{EVENT}")
 
 try:
-    for event in evdev.InputDevice("/dev/input/event2").read_loop():
+    for event in xboxController.read_loop():
         if event.type == evdev.ecodes.EV_ABS:
             if event.code == evdev.ecodes.ABS_X:
                 print(f"Left Analog Stick: {event.value}")
