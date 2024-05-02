@@ -69,7 +69,20 @@ myColor=(0,0,255)
 CONTROLLER_MODE = 0 # 0 - Manual Control, 1 - Automatic Control
 # Default to manual control if the joystick is grabbed.
 # TODO: make is so you don't need to hold the joystick in a certain position i.e. tap the joystick to move
+INCREMENTAL_CONTROL = True
+SPEED = 1
+pitchAngle = 90
+yawAngle = 90
+lastYawValue = 0
+lastPitchValue = 0
 
+def saturate_angle(angle):
+    if angle > 180:
+        angle = 180
+    elif angle < 0:
+        angle = 0
+    return angle
+    
 class ServoController(Thread):
     def __init__(self):
         Thread.__init__(self)
@@ -85,39 +98,70 @@ class ServoController(Thread):
 
     def run(self):
         # Control Pan/Tilt Mount
-        global CONTROLLER_MODE
+        global CONTROLLER_MODE, yawAngle, pitchAngle, lastYawValue, lastPitchValue, INCREMENTAL_CONTROL
         for event in xboxController.read_loop():
             if event.type == evdev.ecodes.EV_ABS:
                 if event.code == evdev.ecodes.ABS_X:
                     print(f"Left Analog Stick: {event.value}")                   
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
-
-                    # Normalise the range 0-65535 to 0-180
-                    angle = (event.value / 65535.0) * 180
-                    angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                    rotate_servo(angleCorrected, yawServo)
+                    
+                    if INCREMENTAL_CONTROL:
+                        # See how far the joystick is pushed and compute movement accordingly
+                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
+                        yawAngleNew = round(yawAngle - (10 * val * SPEED))
+                        yawAngle = saturate_angle(yawAngleNew)
+                        rotate_servo(yawAngle, yawServo)
+                        lastYawValue = val
+                    else:
+                        # Normalise the range 0-65535 to 0-180
+                        angle = (event.value / 65535.0) * 180
+                        angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
+                        rotate_servo(angleCorrected, yawServo)
                 elif event.code == evdev.ecodes.ABS_RZ:
                     print(f"Right Analog Stick: {event.value}")
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
-                    
-                    # Normalise the range 0-65535 to 0-180
-                    angle = (event.value / 65535.0) * 180
-                    angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                    rotate_servo(angleCorrected, pitchServo)
+                    if INCREMENTAL_CONTROL:
+                        # See how far the joystick is pushed and compute movement accordingly
+                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
+                        pitchAngleNew = round(pitchAngle - (10 * val * SPEED))
+                        pitchAngle = saturate_angle(pitchAngleNew)
+                        rotate_servo(pitchAngle, pitchServo)
+                        lastPitchValue = val
+                    else:
+                        # Normalise the range 0-65535 to 0-180
+                        angle = (event.value / 65535.0) * 180
+                        angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
+                        rotate_servo(angleCorrected, pitchServo)
+                else:
+                    # Look at the previous readings and apply movement accordingly
+                    if INCREMENTAL_CONTROL:
+                        yawAngleNew = round(yawAngle - (2 * lastYawValue * SPEED))
+                        yawAngle = saturate_angle(yawAngleNew)
+                        rotate_servo(yawAngle, yawServo)
+                        pitchAngleNew = round(pitchAngle - (2 * lastPitchValue * SPEED))
+                        pitchAngle = saturate_angle(pitchAngleNew)
+                        rotate_servo(pitchAngle, pitchServo)
 #                 elif event.code == evdev.ecodes.ABS_Y:
 #                     # Left Joystick can control Pitch on both sticks
 #                     # Normalise the range 0-65535 to 0-180
 #                     angle = (event.value / 65535.0) * 180
 #                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
 #                     rotate_servo(angleCorrected, self.pwmPitch)
+                
             elif event.type == evdev.ecodes.EV_KEY:
                 if event.code == evdev.ecodes.BTN_SOUTH:
                     # Toggle Controller Mode between MANUAL/AUTOMATIC
-                    print(f"Button Pressed: {event.value}")
+                    print(f"Man/Auto Pressed: {event.value}")
                     if event.value == 1:
                         # If the button is pressed, toggle the mode
                         CONTROLLER_MODE = not CONTROLLER_MODE
-
+                elif event.code == evdev.ecodes.BTN_EAST:
+                    # Toggle Incremental Controller Mode
+                    print(f"Incremental Pressed: {event.value}")
+                    if event.value == 1:
+                        # If the button is pressed, toggle the mode
+                        INCREMENTAL_CONTROL = not INCREMENTAL_CONTROL
+ 
 # Stack for processing thread
 frameStack = LifoQueue()
 
