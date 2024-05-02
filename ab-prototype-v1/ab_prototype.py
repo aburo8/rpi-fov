@@ -11,6 +11,7 @@ from threading import Thread
 from libcamera import Transform
 import pigpio
 from queue import LifoQueue
+import math
 
 # PI Camera Setup
 picam2 = Picamera2()
@@ -77,6 +78,9 @@ lastYawValue = 0
 lastPitchValue = 0
 
 def saturate_angle(angle):
+    """
+    Saturate an angle between 0-180
+    """
     if angle > 180:
         angle = 180
     elif angle < 0:
@@ -84,6 +88,9 @@ def saturate_angle(angle):
     return angle
     
 class ServoController(Thread):
+    """
+    Servo Controlling Thread
+    """
     def __init__(self):
         Thread.__init__(self)
         # Create a PWM instance - only for rGPIO
@@ -102,7 +109,7 @@ class ServoController(Thread):
         for event in xboxController.read_loop():
             if event.type == evdev.ecodes.EV_ABS:
                 if event.code == evdev.ecodes.ABS_X:
-                    print(f"Left Analog Stick: {event.value}")                   
+#                     print(f"Left Analog Stick: {event.value}")                   
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
                     
                     if INCREMENTAL_CONTROL:
@@ -118,7 +125,7 @@ class ServoController(Thread):
                         angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
                         rotate_servo(angleCorrected, yawServo)
                 elif event.code == evdev.ecodes.ABS_RZ:
-                    print(f"Right Analog Stick: {event.value}")
+#                     print(f"Right Analog Stick: {event.value}")
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
@@ -135,6 +142,8 @@ class ServoController(Thread):
                 else:
                     # Look at the previous readings and apply movement accordingly
                     if INCREMENTAL_CONTROL:
+                        # TODO: add move thread to fix incremental control bug (this only executes when the joystick is moved incorrectly, should execute whever a joystick action is not being processed)
+                        # May need to add semaphore?
                         yawAngleNew = round(yawAngle - (2 * lastYawValue * SPEED))
                         yawAngle = saturate_angle(yawAngleNew)
                         rotate_servo(yawAngle, yawServo)
@@ -168,7 +177,11 @@ frameStack = LifoQueue()
 # Face Cascade Model
 faceCascade=cv2.CascadeClassifier('./data/haarcascade_frontalface_default.xml')
 
-def process_image(frame, isGray=False, draw=False):
+def process_image(frame, isGray=False, draw=False, move=False):
+    """
+    Processes an image.
+    Currently performs face detection.
+    """
     frameGray = frame
     
     # Convert Frame
@@ -177,8 +190,29 @@ def process_image(frame, isGray=False, draw=False):
     
     # Process Image
     faces = faceCascade.detectMultiScale(frameGray, 1.3, 5)
-    print(faces)
+#     print(faces)
     
+    # Move the servos to follow the faces
+    if move and len(faces) > 0 :
+        global yawAngle, pitchAngle
+        if CONTROLLER_MODE: # Check Auto mode is on
+            # We can only follow 1 face - just pick the first
+            x, y, w, h = faces[0]
+            xCtr = x + (w / 2)
+            yCtr = y + (h / 2)
+            dx = xCtr - (dispW / 2)
+            dy = yCtr - (dispH / 2)
+            print(f"Corn: ({x},{y}), w: {w}, h: {h}, Cen: ({xCtr},{yCtr}), dx/dy: ({dx},{dy})")
+            if np.abs(dx) > 200:
+                # Shift 
+                yawAngle = saturate_angle(yawAngle + math.copysign(5, dx))
+                rotate_servo(yawAngle, yawServo)
+            
+            if np.abs(dy) > 200:
+                # Shift 
+                pitchAngle = saturate_angle(pitchAngle + math.copysign(5, dy))
+                rotate_servo(pitchAngle, pitchServo)
+
     if draw:
         for face in faces:
             x, y, w, h = face
@@ -186,6 +220,9 @@ def process_image(frame, isGray=False, draw=False):
     return frame
 
 class ImageProcessingWorker(Thread):
+    """
+    Image Processing Thread
+    """
     def __init__(self):
         Thread.__init__(self)
 
@@ -205,7 +242,7 @@ try:
     
     # Setup a worker thread for image processing
     imageProcessor = ImageProcessingWorker()
-    imageProcessor.start()
+#     imageProcessor.start()
     
     while True:
         tStart = time.time()
@@ -217,7 +254,7 @@ try:
         # When using multi-threaded processing, we don't draw the face on the current frame.
         # Uncomment the following lines to sequentially process the images and draw in the rectangle
         # NOTE: also stop the imageProcessor thread from starting, otherwise double processing will occur
-#         im = process_image(im, False, True)
+        im = process_image(im, False, True, True)
 
         # Draw FPS Label
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
