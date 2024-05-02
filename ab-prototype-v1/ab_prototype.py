@@ -102,13 +102,24 @@ class ServoController(Thread):
 #                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
 #                     rotate_servo(angleCorrected, self.pwmPitch)
 
+# Face Cascade Model
+faceCascade=cv2.CascadeClassifier('./data/haarcascade_frontalface_default.xml')
+
 try:
     # Setup the Servo Controller
     servoController = ServoController()
     servoController.start()
     while True:
-        tStart=time.time()
-        im= picam2.capture_array()
+        tStart = time.time()
+        im = picam2.capture_array()
+        
+        # Face Detection
+        frameGray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        faces = faceCascade.detectMultiScale(frameGray, 1.3, 5)
+        print(faces)
+        for face in faces:
+            x, y, w, h = face
+            cv2.rectangle(im, (x, y), (x + w, y + w), (255, 0, 0,), 3)
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
         cv2.imshow("Camera", im)
         if cv2.waitKey(1)==ord('q'):
