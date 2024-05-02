@@ -66,6 +66,9 @@ font=cv2.FONT_HERSHEY_SIMPLEX
 height=1.5
 weight=3
 myColor=(0,0,255)
+CONTROLLER_MODE = 0 # 0 - Manual Control, 1 - Automatic Control
+# Default to manual control if the joystick is grabbed.
+# TODO: make is so you don't need to hold the joystick in a certain position i.e. tap the joystick to move
 
 class ServoController(Thread):
     def __init__(self):
@@ -82,17 +85,22 @@ class ServoController(Thread):
 
     def run(self):
         # Control Pan/Tilt Mount
+        global CONTROLLER_MODE
         for event in xboxController.read_loop():
             if event.type == evdev.ecodes.EV_ABS:
                 if event.code == evdev.ecodes.ABS_X:
-                    print(f"Left Analog Stick: {event.value}")
+                    print(f"Left Analog Stick: {event.value}")                   
+                    CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
+
                     # Normalise the range 0-65535 to 0-180
                     angle = (event.value / 65535.0) * 180
                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
                     rotate_servo(angleCorrected, yawServo)
                 elif event.code == evdev.ecodes.ABS_RZ:
-                    # Normalise the range 0-65535 to 0-180
                     print(f"Right Analog Stick: {event.value}")
+                    CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
+                    
+                    # Normalise the range 0-65535 to 0-180
                     angle = (event.value / 65535.0) * 180
                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
                     rotate_servo(angleCorrected, pitchServo)
@@ -102,6 +110,13 @@ class ServoController(Thread):
 #                     angle = (event.value / 65535.0) * 180
 #                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
 #                     rotate_servo(angleCorrected, self.pwmPitch)
+            elif event.type == evdev.ecodes.EV_KEY:
+                if event.code == evdev.ecodes.BTN_SOUTH:
+                    # Toggle Controller Mode between MANUAL/AUTOMATIC
+                    print(f"Button Pressed: {event.value}")
+                    if event.value == 1:
+                        # If the button is pressed, toggle the mode
+                        CONTROLLER_MODE = not CONTROLLER_MODE
 
 # Stack for processing thread
 frameStack = LifoQueue()
