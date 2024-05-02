@@ -1,5 +1,6 @@
 import cv2
 from picamera2 import Picamera2
+from libcamera import Transform
 import time
 
 # PI Camera Setup
@@ -8,8 +9,10 @@ dispW=1280
 dispH=720
 picam2.preview_configuration.main.size = (dispW,dispH)
 picam2.preview_configuration.main.format = "RGB888"
-picam2.preview_configuration.controls.FrameRate=30
-picam2.preview_configuration.align()
+# picam2.preview_configuration.controls.FrameRate=30
+# picam2.preview_configuration.align()
+config = picam2.create_preview_configuration(transform=Transform(vflip=True))
+picam2.preview_configuration.transform = Transform(vflip=True)
 picam2.configure("preview")
 picam2.start()
 

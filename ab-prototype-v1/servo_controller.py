@@ -45,17 +45,17 @@ try:
                 angle = (event.value / 65535.0) * 180
                 angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
                 rotate_servo(angleCorrected, pwmYaw)
-            elif event.code == evdev.ecodes.ABS_Y:
-                # Left Joystick can control Pitch on both sticks
-                # Normalise the range 0-65535 to 0-180
-                angle = (event.value / 65535.0) * 180
-                angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                rotate_servo(angleCorrected, pwmPitch)
             elif event.code == evdev.ecodes.ABS_RZ:
                 # Normalise the range 0-65535 to 0-180
                 angle = (event.value / 65535.0) * 180
                 angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
                 rotate_servo(angleCorrected, pwmPitch)
+#             elif event.code == evdev.ecodes.ABS_Y:
+#                 # Left Joystick can control Pitch on both sticks
+#                 # Normalise the range 0-65535 to 0-180
+#                 angle = (event.value / 65535.0) * 180
+#                 angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
+#                 rotate_servo(angleCorrected, pwmPitch)
 except KeyboardInterrupt:
     print("\nProgram terminated by user.")
 finally:
