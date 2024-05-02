@@ -10,6 +10,7 @@ from picamera2 import Picamera2
 from threading import Thread
 from libcamera import Transform
 import pigpio
+from queue import LifoQueue
 
 # PI Camera Setup
 picam2 = Picamera2()
@@ -102,24 +103,64 @@ class ServoController(Thread):
 #                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
 #                     rotate_servo(angleCorrected, self.pwmPitch)
 
+# Stack for processing thread
+frameStack = LifoQueue()
+
 # Face Cascade Model
 faceCascade=cv2.CascadeClassifier('./data/haarcascade_frontalface_default.xml')
+
+def process_image(frame, isGray=False, draw=False):
+    frameGray = frame
+    
+    # Convert Frame
+    if not isGray:
+        frameGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    # Process Image
+    faces = faceCascade.detectMultiScale(frameGray, 1.3, 5)
+    print(faces)
+    
+    if draw:
+        for face in faces:
+            x, y, w, h = face
+            cv2.rectangle(frame, (x, y), (x + w, y + w), (255, 0, 0,), 3)
+    return frame
+
+class ImageProcessingWorker(Thread):
+    def __init__(self):
+        Thread.__init__(self)
+
+    
+    def run(self):
+        # Face Detection
+        while True:
+            if not frameStack.empty():
+                frame = frameStack.get()
+                frameGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                process_image(frameGray, True, False)
 
 try:
     # Setup the Servo Controller
     servoController = ServoController()
     servoController.start()
+    
+    # Setup a worker thread for image processing
+    imageProcessor = ImageProcessingWorker()
+    imageProcessor.start()
+    
     while True:
         tStart = time.time()
         im = picam2.capture_array()
         
-        # Face Detection
-        frameGray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        faces = faceCascade.detectMultiScale(frameGray, 1.3, 5)
-        print(faces)
-        for face in faces:
-            x, y, w, h = face
-            cv2.rectangle(im, (x, y), (x + w, y + w), (255, 0, 0,), 3)
+        # Process Image
+        frameStack.put(im)
+        
+        # When using multi-threaded processing, we don't draw the face on the current frame.
+        # Uncomment the following lines to sequentially process the images and draw in the rectangle
+        # NOTE: also stop the imageProcessor thread from starting, otherwise double processing will occur
+#         im = process_image(im, False, True)
+
+        # Draw FPS Label
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
         cv2.imshow("Camera", im)
         if cv2.waitKey(1)==ord('q'):
