@@ -1,6 +1,8 @@
 """
 FOV Expansion Prototype
 - Manual Camera Control with Face/Eye Detection
+- Manual Mirror Control
+- Automatic Mirror Control (Coming Soon)
 """
 import time
 import evdev
@@ -12,6 +14,8 @@ from libcamera import Transform
 import pigpio
 from queue import LifoQueue
 import math
+from stack import MaxLifoQueue
+import psutil
 
 # PI Camera Setup
 picam2 = Picamera2()
@@ -19,16 +23,20 @@ dispW=1280
 dispH=720
 picam2.preview_configuration.main.size = (dispW,dispH)
 picam2.preview_configuration.main.format = "RGB888"
-# picam2.preview_configuration.controls.FrameRate=30
+picam2.preview_configuration.controls.FrameRate=24
 # picam2.preview_configuration.align()
 config = picam2.create_preview_configuration(transform=Transform(vflip=True))
 picam2.preview_configuration.transform = Transform(vflip=True)
 picam2.configure("preview")
 picam2.start()
 
-# Define GPIO pin for the servo
-pitchServo = 18
-yawServo = 13
+# Define GPIO pins for the servos
+pitchServo = 15
+yawServo = 18
+# pitchServo = 19
+# yawServo = 26
+
+# cameraYawServo 
 
 # Setup Pigpio
 gpio = pigpio.pi()
@@ -172,7 +180,7 @@ class ServoController(Thread):
                         INCREMENTAL_CONTROL = not INCREMENTAL_CONTROL
  
 # Stack for processing thread
-frameStack = LifoQueue()
+frameStack = MaxLifoQueue()
 
 # Face Cascade Model
 faceCascade=cv2.CascadeClassifier('./data/haarcascade_frontalface_default.xml')
@@ -233,7 +241,7 @@ class ImageProcessingWorker(Thread):
             if not frameStack.empty():
                 frame = frameStack.get()
                 frameGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                process_image(frameGray, True, False)
+                process_image(frameGray, True, False, True)
 
 try:
     # Setup the Servo Controller
@@ -242,19 +250,27 @@ try:
     
     # Setup a worker thread for image processing
     imageProcessor = ImageProcessingWorker()
-#     imageProcessor.start()
+    imageProcessor.start()
+    memLimit = 1200
     
     while True:
+        # Mem Check
+        usage = psutil.virtual_memory().used / (1024*1024)
+        if usage > memLimit:
+            print("Memory Limit Hit")
+            break
         tStart = time.time()
         im = picam2.capture_array()
         
         # Process Image
         frameStack.put(im)
-        
+#         if frameStack.qsize() >= 1000:
+#             frameStack = LifoQueue()
+
         # When using multi-threaded processing, we don't draw the face on the current frame.
         # Uncomment the following lines to sequentially process the images and draw in the rectangle
         # NOTE: also stop the imageProcessor thread from starting, otherwise double processing will occur
-        im = process_image(im, False, True, True)
+#         im = process_image(im, False, True, True)
 
         # Draw FPS Label
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
