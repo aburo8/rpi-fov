@@ -22,8 +22,12 @@ import argparse
 # Configure command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-min", "--headless", dest = "headless", nargs="?", const = True, default = False, help = "Run without displaying the camera feed")
+parser.add_argument("-s", "--sync_cam", dest = "syncCam", nargs="?", const = True, default = False, help = "Syns the current camera position to the mirror position")
+
 args = parser.parse_args()
+print("Command line args:")
 print("Headless: " + str(args.headless))
+print("Sync Cam: " + str(args.syncCam))
 
 # Before starting the program wait for controller connection
 controllerConnected = False
@@ -136,6 +140,7 @@ SPEED = 1
 CONTROL_PERIPHERAL = False # True for camera, False for mirror
 HEADLESS = args.headless # Prevents QT Window from running
 CONTROLLER_ACTION = False # Gets set to True whenever controller actions are being processed
+SYNC_CAM = args.syncCam
 camPitchAngle = 90
 camYawAngle = 90
 camLastYawValue = 0
@@ -214,6 +219,12 @@ class ServoController(Thread):
                             mirYawAngle = saturate_angle(yawAngleNew)
                             rotate_servo(mirYawAngle, mirYawServo, True)
                             mirLastYawValue = val
+                            
+                            # Move Camera so it aligns with the current position of the mirror
+                            if SYNC_CAM:
+                                camYawAngle = mirYawAngle
+                                rotate_servo(camYawAngle, camYawServo)
+                                camLastYawValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
@@ -224,6 +235,10 @@ class ServoController(Thread):
                         else:
                             # Mirror Control
                             rotate_servo(angleCorrected, mirYawServo, True)
+                            
+                            if SYNC_CAM:
+                                rotate_servo(angleCorrected, camYawServo)
+
                 elif event.code == evdev.ecodes.ABS_RZ:
                     # PITCH CONTROL
 #                     print(f"Right Analog Stick: {event.value}")
@@ -243,6 +258,13 @@ class ServoController(Thread):
                             mirPitchAngle = saturate_angle(pitchAngleNew)
                             rotate_servo(mirPitchAngle, mirPitchServo, True)
                             mirLastPitchValue = val
+                            
+                            # Move Camera so it aligns with the current position of the mirror
+                            if SYNC_CAM:
+                                camPitchAngle = mirPitchAngle
+                                rotate_servo(camPitchAngle, camPitchServo, True)
+                                camLastPitchValue = val
+                            
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
@@ -253,6 +275,8 @@ class ServoController(Thread):
                         else:
                             # Mirror Control
                             rotate_servo(angleCorrected, mirPitchServo, True)
+                            if SYNC_CAM:
+                                rotate_servo(angleCorrected, camPitchServo, True)
                 elif event.code == evdev.ecodes.ABS_Y:
                     # PITCH CONTROL (Left Joystick)
 #                     print(f"Right Analog Stick: {event.value}")
@@ -272,6 +296,12 @@ class ServoController(Thread):
                             mirPitchAngle = saturate_angle(pitchAngleNew)
                             rotate_servo(mirPitchAngle, mirPitchServo, True)
                             mirLastPitchValue = val
+                            
+                            # Move Camera so it aligns with the current position of the mirror
+                            if SYNC_CAM:
+                                camPitchAngle = mirPitchAngle
+                                rotate_servo(camPitchAngle, camPitchServo, True)
+                                camLastPitchValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
@@ -281,7 +311,9 @@ class ServoController(Thread):
                             rotate_servo(angleCorrected, camPitchServo)
                         else:
                             # Mirror Control
-                            rotate_servo(angleCorrected, mirYawServo, True)
+                            rotate_servo(angleCorrected, mirPitchServo, True)
+                            if SYNC_CAM:
+                                rotate_servo(angleCorrected, camPitchServo, True)
                 else:
                     # Look at the previous readings and apply movement accordingly
                     if INCREMENTAL_CONTROL:
@@ -303,6 +335,12 @@ class ServoController(Thread):
                             pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
                             mirPitchAngle = saturate_angle(pitchAngleNew)
                             rotate_servo(mirPitchAngle, mirPitchServo, True)
+                            
+                            if SYNC_CAM:
+                                camYawAngle = mirYawAngle
+                                rotate_servo(camYawAngle, camYawServo)
+                                camPitchAngle = mirPitchAngle
+                                rotate_servo(camPitchAngle, camPitchServo, True)
 #                 elif event.code == evdev.ecodes.ABS_Y:
 #                     # Left Joystick can control Pitch on both sticks
 #                     # Normalise the range 0-65535 to 0-180
@@ -381,7 +419,7 @@ def process_image(frame, isGray=False, draw=False, move=False):
                                 
                 # Shift Mirror
                 mirPitchAngle = camPitchAngle
-                rotate_servo(mirPitchAngle, mirPitchServo, True)
+                rotate_servo(mirPitchAngle, mirPitchServo)
 
     if draw:
         for face in faces:
@@ -436,6 +474,12 @@ class IncrementalControlWorker(Thread):
                     pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
                     mirPitchAngle = saturate_angle(pitchAngleNew)
                     rotate_servo(mirPitchAngle, mirPitchServo, True)
+                    
+                    if SYNC_CAM:
+                            camYawAngle = mirYawAngle
+                            rotate_servo(camYawAngle, camYawServo)
+                            camPitchAngle = mirPitchAngle
+                            rotate_servo(camPitchAngle, camPitchServo, True)
 
 try:
     # Setup the Servo Controller
