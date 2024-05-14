@@ -170,7 +170,7 @@ class ServoController(Thread):
 #         self.pwmYaw.start(angle_to_duty_cycle(90))
         # PIGPIO - init servo's to centre
         # pigpio servo range 500-2500
-        gpio.set_servo_pulsewidth(camPitchServo, 1500)
+        gpio.set_servo_pulsewidth(camPitchServo, 1300)
         gpio.set_servo_pulsewidth(camYawServo, 1500)
         gpio.set_servo_pulsewidth(mirPitchServo, 1500)
         gpio.set_servo_pulsewidth(mirYawServo, 1500)
@@ -355,7 +355,7 @@ def process_image(frame, isGray=False, draw=False, move=False):
     
     # Move the servos to follow the faces
     if move and len(faces) > 0 :
-        global camYawAngle, camPitchAngle
+        global camYawAngle, camPitchAngle, mirYawAngle, mirPitchAngle
         if CONTROLLER_MODE: # Check Auto mode is on
             # We can only follow 1 face - just pick the first
             x, y, w, h = faces[0]
@@ -365,14 +365,23 @@ def process_image(frame, isGray=False, draw=False, move=False):
             dy = yCtr - (dispH / 2)
             print(f"Corn: ({x},{y}), w: {w}, h: {h}, Cen: ({xCtr},{yCtr}), dx/dy: ({dx},{dy})")
             if np.abs(dx) > 200:
-                # Shift 
+                # Shift Camera
                 camYawAngle = saturate_angle(camYawAngle + math.copysign(5, dx))
                 rotate_servo(camYawAngle, camYawServo)
+                
+                # Shift Mirror
+                mirYawAngle = camYawAngle
+                rotate_servo(mirYawAngle, mirYawServo, True)
             
             if np.abs(dy) > 200:
                 # Shift 
                 camPitchAngle = saturate_angle(camPitchAngle + math.copysign(5, dy))
                 rotate_servo(camPitchAngle, camPitchServo)
+                
+                                
+                # Shift Mirror
+                mirPitchAngle = camPitchAngle
+                rotate_servo(mirPitchAngle, mirPitchServo, True)
 
     if draw:
         for face in faces:
