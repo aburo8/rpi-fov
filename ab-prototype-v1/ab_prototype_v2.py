@@ -102,7 +102,7 @@ def angle_to_pulse_width(angle):
     return pulseWidth
 
 # Function to rotate the servo to a specific angle
-def rotate_servo(angle, servoGPIO):
+def rotate_servo(angle, servoGPIO, invert=False):
     """
     Rotates the servo based on th specified angle
     """
@@ -110,7 +110,15 @@ def rotate_servo(angle, servoGPIO):
 #     dutyCycle = angle_to_duty_cycle(angle)
 #     servoPWM.ChangeDutyCycle(dutyCycle)  # Adjust the sleep time as needed
     # PIGPIO
-    pulseWidth = angle_to_pulse_width(angle)
+    rotationAngle = angle
+    if invert:
+        if (angle > 90):
+            x = angle - 90
+            rotationAngle = 90 - x
+        elif (angle < 90):
+            x = 90 - angle
+            rotationAngle = 90 + x
+    pulseWidth = angle_to_pulse_width(rotationAngle)
     gpio.set_servo_pulsewidth(servoGPIO, pulseWidth)
 
 # Global Variables
@@ -200,13 +208,18 @@ class ServoController(Thread):
                             # Mirror Control
                             yawAngleNew = round(mirYawAngle - (10 * val * SPEED))
                             mirYawAngle = saturate_angle(yawAngleNew)
-                            rotate_servo(mirYawAngle, mirYawServo)
+                            rotate_servo(mirYawAngle, mirYawServo, True)
                             mirLastYawValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
                         angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                        rotate_servo(angleCorrected, manYawServo) # Rotates whatever servo is currently under manual control
+                        if CONTROL_PERIPHERAL:
+                            # Camera Control
+                            rotate_servo(angleCorrected, camYawServo)
+                        else:
+                            # Mirror Control
+                            rotate_servo(angleCorrected, mirYawServo, True)
                 elif event.code == evdev.ecodes.ABS_RZ:
                     # PITCH CONTROL
 #                     print(f"Right Analog Stick: {event.value}")
@@ -224,13 +237,47 @@ class ServoController(Thread):
                             # Mirror Control
                             pitchAngleNew = round(mirPitchAngle - (10 * val * SPEED))
                             mirPitchAngle = saturate_angle(pitchAngleNew)
-                            rotate_servo(mirPitchAngle, mirPitchServo)
+                            rotate_servo(mirPitchAngle, mirPitchServo, True)
                             mirLastPitchValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
                         angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                        rotate_servo(angleCorrected, manPitchServo) # Rotate whatever servo is currently under manual control
+                        if CONTROL_PERIPHERAL:
+                            # Camera Control
+                            rotate_servo(angleCorrected, camPitchServo)
+                        else:
+                            # Mirror Control
+                            rotate_servo(angleCorrected, mirPitchServo, True)
+                elif event.code == evdev.ecodes.ABS_Y:
+                    # PITCH CONTROL (Left Joystick)
+#                     print(f"Right Analog Stick: {event.value}")
+                    CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
+                    if INCREMENTAL_CONTROL:
+                        # See how far the joystick is pushed and compute movement accordingly
+                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
+                        if (CONTROL_PERIPHERAL):
+                            # Camera Control
+                            pitchAngleNew = round(camPitchAngle - (10 * val * SPEED))
+                            camPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(camPitchAngle, camPitchServo)
+                            camLastPitchValue = val
+                        else:
+                            # Mirror Control
+                            pitchAngleNew = round(mirPitchAngle - (10 * val * SPEED))
+                            mirPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(mirPitchAngle, mirPitchServo, True)
+                            mirLastPitchValue = val
+                    else:
+                        # Normalise the range 0-65535 to 0-180
+                        angle = (event.value / 65535.0) * 180
+                        angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
+                        if CONTROL_PERIPHERAL:
+                            # Camera Control
+                            rotate_servo(angleCorrected, camPitchServo)
+                        else:
+                            # Mirror Control
+                            rotate_servo(angleCorrected, mirYawServo, True)
                 else:
                     # Look at the previous readings and apply movement accordingly
                     if INCREMENTAL_CONTROL:
@@ -248,10 +295,10 @@ class ServoController(Thread):
                             # Mirror Control
                             yawAngleNew = round(mirYawAngle - (2 * mirLastYawValue * SPEED))
                             mirYawAngle = saturate_angle(yawAngleNew)
-                            rotate_servo(mirYawAngle, mirYawServo)
+                            rotate_servo(mirYawAngle, mirYawServo, True)
                             pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
                             mirPitchAngle = saturate_angle(pitchAngleNew)
-                            rotate_servo(mirPitchAngle, mirPitchServo)
+                            rotate_servo(mirPitchAngle, mirPitchServo, True)
 #                 elif event.code == evdev.ecodes.ABS_Y:
 #                     # Left Joystick can control Pitch on both sticks
 #                     # Normalise the range 0-65535 to 0-180
@@ -386,6 +433,7 @@ except KeyboardInterrupt:
     print("\nProgram terminated by user.")
 finally:
     cv2.destroyAllWindows()
+    exit()
     # Only needed for rGPIO        
 #     pwmPitch.stop()
 #     pwmYaw.stop()
