@@ -17,6 +17,13 @@ import math
 from stack import MaxLifoQueue
 import psutil
 from time import sleep
+import argparse
+
+# Configure command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-min", "--headless", dest = "headless", nargs="?", const = True, default = False, help = "Run without displaying the camera feed")
+args = parser.parse_args()
+print("Headless: " + str(args.headless))
 
 # Before starting the program wait for controller connection
 controllerConnected = False
@@ -119,6 +126,7 @@ CONTROLLER_MODE = 0 # 0 - Manual Control, 1 - Automatic Control
 INCREMENTAL_CONTROL = True
 SPEED = 1
 CONTROL_PERIPHERAL = False # True for camera, False for mirror
+HEADLESS = args.headless # Prevents QT Window from running
 camPitchAngle = 90
 camYawAngle = 90
 camLastYawValue = 0
@@ -367,9 +375,10 @@ try:
 
         # Draw FPS Label
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
-        cv2.imshow("Camera", im)
-        if cv2.waitKey(1)==ord('q'):
-            break
+        if not HEADLESS:  
+            cv2.imshow("Camera", im)
+            if cv2.waitKey(1)==ord('q'):
+                break
         tEnd=time.time()
         loopTime=tEnd-tStart
         fps=.9*fps + .1*(1/loopTime)

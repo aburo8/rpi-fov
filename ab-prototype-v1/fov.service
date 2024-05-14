@@ -1,0 +1,9 @@
+[Unit]
+Description=FOV Expansion System Service
+After=bluetooth.target
+
+[Service]
+ExecStart=/home/aburo6/Desktop/rpi-fov/ab-prototype-v1/launch_fov.sh
+
+[Install]
+WantedBy=multi-user.target
