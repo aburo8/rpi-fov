@@ -22,12 +22,13 @@ import argparse
 # Configure command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("-min", "--headless", dest = "headless", nargs="?", const = True, default = False, help = "Run without displaying the camera feed")
-parser.add_argument("-s", "--sync_cam", dest = "syncCam", nargs="?", const = True, default = False, help = "Syns the current camera position to the mirror position")
-
+parser.add_argument("-s", "--sync_cam", dest = "syncCam", nargs="?", const = True, default = False, help = "Syncs the current camera position to the mirror position")
+parser.add_argument("-d", "--draw", dest = "draw", nargs="?", const = True, default = False, help = "Draws the bounding box around detected faces detected faces")
 args = parser.parse_args()
 print("Command line args:")
 print("Headless: " + str(args.headless))
 print("Sync Cam: " + str(args.syncCam))
+print("Draw: " + str(args.draw))
 
 # Before starting the program wait for controller connection
 controllerConnected = False
@@ -126,7 +127,8 @@ SPEED = 1
 CONTROL_PERIPHERAL = False # True for camera, False for mirror
 HEADLESS = args.headless # Prevents QT Window from running
 CONTROLLER_ACTION = False # Gets set to True whenever controller actions are being processed
-SYNC_CAM = args.syncCam
+SYNC_CAM = args.syncCam # Syncs the camera position to the mirror position
+DRAW = args.draw # Draws bounding boxes around detected faces
 camPitchAngle = 90
 camYawAngle = 90
 camLastYawValue = 0
@@ -449,7 +451,8 @@ try:
     
     # Setup a worker thread for image processing
     imageProcessor = ImageProcessingWorker()
-    imageProcessor.start()
+    if not DRAW:
+        imageProcessor.start()
     memLimit = 1200
     
     # Setup Incremental Movement Controller
@@ -471,7 +474,8 @@ try:
         # When using multi-threaded processing, we don't draw the face on the current frame.
         # Uncomment the following lines to sequentially process the images and draw in the rectangle
         # NOTE: also stop the imageProcessor thread from starting, otherwise double processing will occur
-#         im = process_image(im, False, True, True)
+        if DRAW:
+            im = process_image(im, False, True, True)
 
         # Draw FPS Label
         cv2.putText(im,str(int(fps))+' FPS',pos,font,height,myColor,weight)
