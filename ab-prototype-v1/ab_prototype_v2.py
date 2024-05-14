@@ -304,32 +304,6 @@ class ServoController(Thread):
                                 rotate_servo(angleCorrected, camPitchServo, True)
                                 camLastPitchValue = val
                                 camPitchAngle = angleCorrected
-
-                else:
-                    # Look at the previous readings and apply movement accordingly
-                    if INCREMENTAL_CONTROL:
-                        if CONTROL_PERIPHERAL:
-                            # Camera Control
-                            yawAngleNew = round(camYawAngle - (2 * camLastYawValue * SPEED))
-                            camYawAngle = saturate_angle(yawAngleNew)
-                            rotate_servo(camYawAngle, camYawServo)
-                            pitchAngleNew = round(camPitchAngle - (2 * camLastPitchValue * SPEED))
-                            camPitchAngle = saturate_angle(pitchAngleNew)
-                            rotate_servo(camPitchAngle, camPitchServo)
-                        else:
-                            # Mirror Control
-                            yawAngleNew = round(mirYawAngle - (2 * mirLastYawValue * SPEED))
-                            mirYawAngle = saturate_angle(yawAngleNew)
-                            rotate_servo(mirYawAngle, mirYawServo, True)
-                            pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
-                            mirPitchAngle = saturate_angle(pitchAngleNew)
-                            rotate_servo(mirPitchAngle, mirPitchServo, True)
-                            
-                            if SYNC_CAM:
-                                camYawAngle = mirYawAngle
-                                rotate_servo(camYawAngle, camYawServo)
-                                camPitchAngle = mirPitchAngle
-                                rotate_servo(camPitchAngle, camPitchServo, True)
                 
             elif event.type == evdev.ecodes.EV_KEY:
                 if event.code == evdev.ecodes.BTN_SOUTH:
@@ -443,20 +417,24 @@ class IncrementalControlWorker(Thread):
             if INCREMENTAL_CONTROL and not CONTROLLER_ACTION:
                 if CONTROL_PERIPHERAL:
                     # Camera Control
-                    yawAngleNew = round(camYawAngle - (2 * camLastYawValue * SPEED))
-                    camYawAngle = saturate_angle(yawAngleNew)
-                    rotate_servo(camYawAngle, camYawServo)
-                    pitchAngleNew = round(camPitchAngle - (2 * camLastPitchValue * SPEED))
-                    camPitchAngle = saturate_angle(pitchAngleNew)
-                    rotate_servo(camPitchAngle, camPitchServo)
+                    if (camLastYawValue < -0.25 or camLastYawValue > 0.25): 
+                        yawAngleNew = round(camYawAngle - (1 * camLastYawValue * SPEED))
+                        camYawAngle = saturate_angle(yawAngleNew)
+                        rotate_servo(camYawAngle, camYawServo)
+                    elif (camLastPitchValue < 0.25 or camLastPitchValue > 0.25): 
+                        pitchAngleNew = round(camPitchAngle - (1 * camLastPitchValue * SPEED))
+                        camPitchAngle = saturate_angle(pitchAngleNew)
+                        rotate_servo(camPitchAngle, camPitchServo)
                 else:
                     # Mirror Control
-                    yawAngleNew = round(mirYawAngle - (2 * mirLastYawValue * SPEED))
-                    mirYawAngle = saturate_angle(yawAngleNew)
-                    rotate_servo(mirYawAngle, mirYawServo, True)
-                    pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
-                    mirPitchAngle = saturate_angle(pitchAngleNew)
-                    rotate_servo(mirPitchAngle, mirPitchServo, True)
+                    if (mirLastYawValue < -0.25 or mirLastYawValue > 0.25): 
+                        yawAngleNew = round(mirYawAngle - (1 * mirLastYawValue * SPEED))
+                        mirYawAngle = saturate_angle(yawAngleNew)
+                        rotate_servo(mirYawAngle, mirYawServo, True)
+                    elif (mirLastPitchValue < -0.25 or mirLastPitchValue > 0.25): 
+                        pitchAngleNew = round(mirPitchAngle - (1 * mirLastPitchValue * SPEED))
+                        mirPitchAngle = saturate_angle(pitchAngleNew)
+                        rotate_servo(mirPitchAngle, mirPitchServo, True)
                     
                     if SYNC_CAM:
                             camYawAngle = mirYawAngle

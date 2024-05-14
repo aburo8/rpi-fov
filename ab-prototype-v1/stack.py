@@ -15,7 +15,7 @@ class MaxLifoQueue():
         if (self.queue.qsize() < self.maxSize):
             self.queue.put(item)
         else:
-            print("Resetting Queue")
+#             print("Resetting Queue")
             self.queue = LifoQueue()
             self.queue.put(item)
     
