@@ -309,23 +309,21 @@ class ServoController(Thread):
             elif event.type == evdev.ecodes.EV_KEY:
                 if event.code == evdev.ecodes.BTN_SOUTH:
                     # Toggle Controller Mode between MANUAL/AUTOMATIC
-                    print(f"Man/Auto Pressed: {event.value}")
                     if event.value == 1:
                         # If the button is pressed, toggle the mode
                         CONTROLLER_MODE = not CONTROLLER_MODE
+                        print(f"Controller Mode => {'Automatic' if CONTROLLER_MODE == True else 'Manual'}")
                 elif event.code == evdev.ecodes.BTN_EAST:
                     # Toggle Incremental Controller Mode
                     if event.value == 1:
                         # If the button is pressed, toggle the mode
                         INCREMENTAL_CONTROL = not INCREMENTAL_CONTROL
-                        msg = f"Movement Mode => {'Incremental' if INCREMENTAL_CONTROL == True else 'Position'}"
-                        print(msg)
-
+                        print(f"Movement Mode => {'Incremental' if INCREMENTAL_CONTROL == True else 'Position'}")
                 elif event.code == evdev.ecodes.BTN_WEST:
                     # Toggle Peripheral Control
                     if event.value == 1:
-                        print(f"Cam/Mirror Pressed: {event.value}")
                         CONTROL_PERIPHERAL = not CONTROL_PERIPHERAL
+                        print(f"Control Peripheral => {'Camera' if CONTROL_PERIPHERAL == True else 'Mirror'}")
      
 # Stack for processing thread
 frameStack = MaxLifoQueue()
