@@ -16,7 +16,39 @@ from queue import LifoQueue
 import math
 from stack import MaxLifoQueue
 import psutil
+from time import sleep
 
+# Before starting the program wait for controller connection
+controllerConnected = False
+controllerPath = ""
+
+print("Searching for Controller")
+while not controllerConnected:
+    # Get all of the available input devices
+    devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+    print(".") # loading symbol
+    for device in devices:
+        if device.name == "Xbox Wireless Controller":
+            print("Controller Found!")
+            print(device.path, device.name, device.phys)
+            controllerPath = device.path
+            controllerConnected = True
+
+            # Controller Test
+            try:
+                xboxController = evdev.InputDevice(controllerPath)
+            except FileNotFoundError:
+                print("Bad Controller Found! Restarting Search")
+                controllerConnected = False
+    sleep(2)
+
+# Controller Setup
+try:
+    xboxController = evdev.InputDevice(controllerPath)
+except FileNotFoundError:
+    print("Controller Not Found! Exiting!")
+    
+    
 # PI Camera Setup
 picam2 = Picamera2()
 dispW=1280
@@ -73,9 +105,6 @@ def rotate_servo(angle, servoGPIO):
     # PIGPIO
     pulseWidth = angle_to_pulse_width(angle)
     gpio.set_servo_pulsewidth(servoGPIO, pulseWidth)
-
-# Controller Inputs
-xboxController = evdev.InputDevice("/dev/input/event6")
 
 # Global Variables
 fps=0
