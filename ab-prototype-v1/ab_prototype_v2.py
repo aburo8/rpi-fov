@@ -204,9 +204,9 @@ class ServoController(Thread):
 #                     print(f"Left Analog Stick: {event.value}")                   
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
                     
+                    val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
-                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                         if (CONTROL_PERIPHERAL):
                             # Camera Control
                             yawAngleNew = round(camYawAngle - (10 * val * SPEED))
@@ -232,20 +232,27 @@ class ServoController(Thread):
                         if CONTROL_PERIPHERAL:
                             # Camera Control
                             rotate_servo(angleCorrected, camYawServo)
+                            camLastYawValue = val
+                            camYawAngle = angleCorrected
                         else:
                             # Mirror Control
                             rotate_servo(angleCorrected, mirYawServo, True)
+                            mirLastYawValue = val
+                            mirYawAngle= angleCorrected
                             
                             if SYNC_CAM:
                                 rotate_servo(angleCorrected, camYawServo)
+                                camLastYawValue = val
+                                camYawAngle = angleCorrected
 
                 elif event.code == evdev.ecodes.ABS_RZ:
                     # PITCH CONTROL
 #                     print(f"Right Analog Stick: {event.value}")
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
+                    
+                    val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
-                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                         if (CONTROL_PERIPHERAL):
                             # Camera Control
                             pitchAngleNew = round(camPitchAngle - (10 * val * SPEED))
@@ -272,18 +279,25 @@ class ServoController(Thread):
                         if CONTROL_PERIPHERAL:
                             # Camera Control
                             rotate_servo(angleCorrected, camPitchServo)
+                            camLastPitchValue = val
+                            camPitchAngle = angleCorrected
+
                         else:
                             # Mirror Control
                             rotate_servo(angleCorrected, mirPitchServo, True)
+                            mirLastPitchValue = val
+                            mirPitchAngle = angleCorrected
                             if SYNC_CAM:
                                 rotate_servo(angleCorrected, camPitchServo, True)
+                                camLastPitchValue = val
+                                camPitchAngle = angleCorrected
                 elif event.code == evdev.ecodes.ABS_Y:
                     # PITCH CONTROL (Left Joystick)
 #                     print(f"Right Analog Stick: {event.value}")
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
+                    val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
-                        val = (event.value / 65535.0) - 0.5 # val [-1, 1]
                         if (CONTROL_PERIPHERAL):
                             # Camera Control
                             pitchAngleNew = round(camPitchAngle - (10 * val * SPEED))
@@ -309,16 +323,21 @@ class ServoController(Thread):
                         if CONTROL_PERIPHERAL:
                             # Camera Control
                             rotate_servo(angleCorrected, camPitchServo)
+                            camLastPitchValue = val
+                            camPitchAngle = angleCorrected
                         else:
                             # Mirror Control
                             rotate_servo(angleCorrected, mirPitchServo, True)
+                            mirLastPitchValue = val
+                            mirPitchAngle = angleCorrected
                             if SYNC_CAM:
                                 rotate_servo(angleCorrected, camPitchServo, True)
+                                camLastPitchValue = val
+                                camPitchAngle = angleCorrected
+
                 else:
                     # Look at the previous readings and apply movement accordingly
                     if INCREMENTAL_CONTROL:
-                        # TODO: add move thread to fix incremental control bug (this only executes when the joystick is moved incorrectly, should execute whever a joystick action is not being processed)
-                        # May need to add semaphore?
                         if CONTROL_PERIPHERAL:
                             # Camera Control
                             yawAngleNew = round(camYawAngle - (2 * camLastYawValue * SPEED))
