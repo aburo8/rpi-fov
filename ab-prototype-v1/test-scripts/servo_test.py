@@ -8,8 +8,8 @@ import time
 GPIO.setmode(GPIO.BOARD)
 
 # Define GPIO pin for the servo
-pitchServo = 12
-yawServo = 33
+pitchServo = 19
+yawServo = 26
 
 # Set up the GPIO pin as output
 GPIO.setup(pitchServo, GPIO.OUT)

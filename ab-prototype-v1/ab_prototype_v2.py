@@ -30,19 +30,28 @@ picam2.preview_configuration.transform = Transform(vflip=True)
 picam2.configure("preview")
 picam2.start()
 
-# Define GPIO pins for the servos
-pitchServo = 15
-yawServo = 18
-# pitchServo = 19
-# yawServo = 26
+# Define & Setup GPIO pins for the servos
+camPitchServo = 15
+camYawServo = 18
+mirPitchServo = 19
+mirYawServo = 26
 
-# cameraYawServo 
+# # Define & Setup GPIO pins for the servos
+# camPitchServo = 19
+# camYawServo = 19
+# mirPitchServo = 19
+# mirYawServo = 19
 
-# Setup Pigpio
+# Servo's Being Moved in Manual Mode
+# This should be set to either camera or mirror
+manPitchServo = mirPitchServo
+manYawServo = mirYawServo
+
 gpio = pigpio.pi()
-
-gpio.set_mode(pitchServo, pigpio.OUTPUT)
-gpio.set_mode(yawServo, pigpio.OUTPUT)
+gpio.set_mode(camPitchServo, pigpio.OUTPUT)
+gpio.set_mode(camYawServo, pigpio.OUTPUT)
+gpio.set_mode(mirPitchServo, pigpio.OUTPUT)
+gpio.set_mode(mirYawServo, pigpio.OUTPUT)
 
 # Function to convert angle to duty cycle
 def angle_to_duty_cycle(angle):
@@ -66,7 +75,7 @@ def rotate_servo(angle, servoGPIO):
     gpio.set_servo_pulsewidth(servoGPIO, pulseWidth)
 
 # Controller Inputs
-xboxController = evdev.InputDevice("/dev/input/event2")
+xboxController = evdev.InputDevice("/dev/input/event6")
 
 # Global Variables
 fps=0
@@ -80,10 +89,17 @@ CONTROLLER_MODE = 0 # 0 - Manual Control, 1 - Automatic Control
 # TODO: make is so you don't need to hold the joystick in a certain position i.e. tap the joystick to move
 INCREMENTAL_CONTROL = True
 SPEED = 1
-pitchAngle = 90
-yawAngle = 90
-lastYawValue = 0
-lastPitchValue = 0
+CONTROL_PERIPHERAL = False # True for camera, False for mirror
+camPitchAngle = 90
+camYawAngle = 90
+camLastYawValue = 0
+camLastPitchValue = 0
+mirPitchAngle = 90
+mirYawAngle = 90
+mirLastYawValue = 0
+mirLastPitchValue = 0
+manPitchServo = camPitchServo
+manYawServo = camYawServo
 
 def saturate_angle(angle):
     """
@@ -108,56 +124,97 @@ class ServoController(Thread):
 #         self.pwmYaw.start(angle_to_duty_cycle(90))
         # PIGPIO - init servo's to centre
         # pigpio servo range 500-2500
-        gpio.set_servo_pulsewidth(pitchServo, 1500)
-        gpio.set_servo_pulsewidth(yawServo, 1500)
+        gpio.set_servo_pulsewidth(camPitchServo, 1500)
+        gpio.set_servo_pulsewidth(camYawServo, 1500)
+        gpio.set_servo_pulsewidth(mirPitchServo, 1500)
+        gpio.set_servo_pulsewidth(mirYawServo, 1500)
 
     def run(self):
         # Control Pan/Tilt Mount
-        global CONTROLLER_MODE, yawAngle, pitchAngle, lastYawValue, lastPitchValue, INCREMENTAL_CONTROL
+        global CONTROLLER_MODE, camYawAngle, camPitchAngle, camLastYawValue, camLastPitchValue, INCREMENTAL_CONTROL, CONTROL_PERIPHERAL
+        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo
         for event in xboxController.read_loop():
+            # Set Control Peripheral
+            if CONTROL_PERIPHERAL:
+                # Control the M
+                manYawServo = camYawServo
+                manPitchServo = camPitchServo
+            else:
+                manYawServo = mirYawServo
+                manPitchServo = mirPitchServo
+            
+            # Filter Control Input
             if event.type == evdev.ecodes.EV_ABS:
                 if event.code == evdev.ecodes.ABS_X:
+                    # YAW CONTROL
 #                     print(f"Left Analog Stick: {event.value}")                   
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
                     
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
                         val = (event.value / 65535.0) - 0.5 # val [-1, 1]
-                        yawAngleNew = round(yawAngle - (10 * val * SPEED))
-                        yawAngle = saturate_angle(yawAngleNew)
-                        rotate_servo(yawAngle, yawServo)
-                        lastYawValue = val
+                        if (CONTROL_PERIPHERAL):
+                            # Camera Control
+                            yawAngleNew = round(camYawAngle - (10 * val * SPEED))
+                            camYawAngle = saturate_angle(yawAngleNew)
+                            rotate_servo(camYawAngle, camYawServo)
+                            camLastYawValue = val
+                        else:
+                            # Mirror Control
+                            yawAngleNew = round(mirYawAngle - (10 * val * SPEED))
+                            mirYawAngle = saturate_angle(yawAngleNew)
+                            rotate_servo(mirYawAngle, mirYawServo)
+                            mirLastYawValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
                         angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                        rotate_servo(angleCorrected, yawServo)
+                        rotate_servo(angleCorrected, manYawServo) # Rotates whatever servo is currently under manual control
                 elif event.code == evdev.ecodes.ABS_RZ:
+                    # PITCH CONTROL
 #                     print(f"Right Analog Stick: {event.value}")
                     CONTROLLER_MODE = 0 # Since the joystick was moved default to manual mode
                     if INCREMENTAL_CONTROL:
                         # See how far the joystick is pushed and compute movement accordingly
                         val = (event.value / 65535.0) - 0.5 # val [-1, 1]
-                        pitchAngleNew = round(pitchAngle - (10 * val * SPEED))
-                        pitchAngle = saturate_angle(pitchAngleNew)
-                        rotate_servo(pitchAngle, pitchServo)
-                        lastPitchValue = val
+                        if (CONTROL_PERIPHERAL):
+                            # Camera Control
+                            pitchAngleNew = round(camPitchAngle - (10 * val * SPEED))
+                            camPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(camPitchAngle, camPitchServo)
+                            camLastPitchValue = val
+                        else:
+                            # Mirror Control
+                            pitchAngleNew = round(mirPitchAngle - (10 * val * SPEED))
+                            mirPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(mirPitchAngle, mirPitchServo)
+                            mirLastPitchValue = val
                     else:
                         # Normalise the range 0-65535 to 0-180
                         angle = (event.value / 65535.0) * 180
                         angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-                        rotate_servo(angleCorrected, pitchServo)
+                        rotate_servo(angleCorrected, manPitchServo) # Rotate whatever servo is currently under manual control
                 else:
                     # Look at the previous readings and apply movement accordingly
                     if INCREMENTAL_CONTROL:
                         # TODO: add move thread to fix incremental control bug (this only executes when the joystick is moved incorrectly, should execute whever a joystick action is not being processed)
                         # May need to add semaphore?
-                        yawAngleNew = round(yawAngle - (2 * lastYawValue * SPEED))
-                        yawAngle = saturate_angle(yawAngleNew)
-                        rotate_servo(yawAngle, yawServo)
-                        pitchAngleNew = round(pitchAngle - (2 * lastPitchValue * SPEED))
-                        pitchAngle = saturate_angle(pitchAngleNew)
-                        rotate_servo(pitchAngle, pitchServo)
+                        if CONTROL_PERIPHERAL:
+                            # Camera Control
+                            yawAngleNew = round(camYawAngle - (2 * camLastYawValue * SPEED))
+                            camYawAngle = saturate_angle(yawAngleNew)
+                            rotate_servo(camYawAngle, camYawServo)
+                            pitchAngleNew = round(camPitchAngle - (2 * camLastPitchValue * SPEED))
+                            camPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(camPitchAngle, camPitchServo)
+                        else:
+                            # Mirror Control
+                            yawAngleNew = round(mirYawAngle - (2 * mirLastYawValue * SPEED))
+                            mirYawAngle = saturate_angle(yawAngleNew)
+                            rotate_servo(mirYawAngle, mirYawServo)
+                            pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
+                            mirPitchAngle = saturate_angle(pitchAngleNew)
+                            rotate_servo(mirPitchAngle, mirPitchServo)
 #                 elif event.code == evdev.ecodes.ABS_Y:
 #                     # Left Joystick can control Pitch on both sticks
 #                     # Normalise the range 0-65535 to 0-180
@@ -174,11 +231,18 @@ class ServoController(Thread):
                         CONTROLLER_MODE = not CONTROLLER_MODE
                 elif event.code == evdev.ecodes.BTN_EAST:
                     # Toggle Incremental Controller Mode
-                    print(f"Incremental Pressed: {event.value}")
                     if event.value == 1:
                         # If the button is pressed, toggle the mode
                         INCREMENTAL_CONTROL = not INCREMENTAL_CONTROL
- 
+                        msg = f"Movement Mode => {'Incremental' if INCREMENTAL_CONTROL == True else 'Position'}"
+                        print(msg)
+
+                elif event.code == evdev.ecodes.BTN_WEST:
+                    # Toggle Peripheral Control
+                    if event.value == 1:
+                        print(f"Cam/Mirror Pressed: {event.value}")
+                        CONTROL_PERIPHERAL = not CONTROL_PERIPHERAL
+     
 # Stack for processing thread
 frameStack = MaxLifoQueue()
 
@@ -202,7 +266,7 @@ def process_image(frame, isGray=False, draw=False, move=False):
     
     # Move the servos to follow the faces
     if move and len(faces) > 0 :
-        global yawAngle, pitchAngle
+        global camYawAngle, camPitchAngle
         if CONTROLLER_MODE: # Check Auto mode is on
             # We can only follow 1 face - just pick the first
             x, y, w, h = faces[0]
@@ -213,13 +277,13 @@ def process_image(frame, isGray=False, draw=False, move=False):
             print(f"Corn: ({x},{y}), w: {w}, h: {h}, Cen: ({xCtr},{yCtr}), dx/dy: ({dx},{dy})")
             if np.abs(dx) > 200:
                 # Shift 
-                yawAngle = saturate_angle(yawAngle + math.copysign(5, dx))
-                rotate_servo(yawAngle, yawServo)
+                camYawAngle = saturate_angle(camYawAngle + math.copysign(5, dx))
+                rotate_servo(camYawAngle, camYawServo)
             
             if np.abs(dy) > 200:
                 # Shift 
-                pitchAngle = saturate_angle(pitchAngle + math.copysign(5, dy))
-                rotate_servo(pitchAngle, pitchServo)
+                camPitchAngle = saturate_angle(camPitchAngle + math.copysign(5, dy))
+                rotate_servo(camPitchAngle, camPitchServo)
 
     if draw:
         for face in faces:

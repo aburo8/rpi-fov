@@ -27,8 +27,8 @@ picam2.configure("preview")
 picam2.start()
 
 # Define GPIO pin for the servo
-pitchServo = 18
-yawServo = 13
+pitchServo = 19
+yawServo = 26
 
 # Setup Pigpio
 gpio = pigpio.pi()
@@ -58,7 +58,7 @@ def rotate_servo(angle, servoGPIO):
     gpio.set_servo_pulsewidth(servoGPIO, pulseWidth)
 
 # Controller Inputs
-xboxController = evdev.InputDevice("/dev/input/event2")
+xboxController = evdev.InputDevice("/dev/input/event6")
 
 # Global Variables
 fps=0
