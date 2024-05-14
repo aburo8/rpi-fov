@@ -135,6 +135,7 @@ INCREMENTAL_CONTROL = True
 SPEED = 1
 CONTROL_PERIPHERAL = False # True for camera, False for mirror
 HEADLESS = args.headless # Prevents QT Window from running
+CONTROLLER_ACTION = False # Gets set to True whenever controller actions are being processed
 camPitchAngle = 90
 camYawAngle = 90
 camLastYawValue = 0
@@ -177,8 +178,11 @@ class ServoController(Thread):
     def run(self):
         # Control Pan/Tilt Mount
         global CONTROLLER_MODE, camYawAngle, camPitchAngle, camLastYawValue, camLastPitchValue, INCREMENTAL_CONTROL, CONTROL_PERIPHERAL
-        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo
+        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
         for event in xboxController.read_loop():
+            # An event as occured
+            CONTROLLER_ACTION = True
+            
             # Set Control Peripheral
             if CONTROL_PERIPHERAL:
                 # Control the M
@@ -324,7 +328,10 @@ class ServoController(Thread):
                     if event.value == 1:
                         CONTROL_PERIPHERAL = not CONTROL_PERIPHERAL
                         print(f"Control Peripheral => {'Camera' if CONTROL_PERIPHERAL == True else 'Mirror'}")
-     
+             
+            # Finished Processing Action
+            CONTROLLER_ACTION = False
+            
 # Stack for processing thread
 frameStack = MaxLifoQueue()
 
@@ -388,6 +395,38 @@ class ImageProcessingWorker(Thread):
                 frame = frameStack.get()
                 frameGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 process_image(frameGray, True, False, True)
+                
+class IncrementalControlWorker(Thread):
+    """
+    Moves the servos accordingly to exhibit smooth incremental control
+    """
+    
+    def __init__(self):
+        Thread.__init__(self)
+        
+    def run(self):
+        global CONTROLLER_MODE, camYawAngle, camPitchAngle, camLastYawValue, camLastPitchValue, INCREMENTAL_CONTROL, CONTROL_PERIPHERAL
+        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
+        
+        while True:
+            # Look at the previous readings and apply movement accordingly
+            if INCREMENTAL_CONTROL and not CONTROLLER_ACTION:
+                if CONTROL_PERIPHERAL:
+                    # Camera Control
+                    yawAngleNew = round(camYawAngle - (2 * camLastYawValue * SPEED))
+                    camYawAngle = saturate_angle(yawAngleNew)
+                    rotate_servo(camYawAngle, camYawServo)
+                    pitchAngleNew = round(camPitchAngle - (2 * camLastPitchValue * SPEED))
+                    camPitchAngle = saturate_angle(pitchAngleNew)
+                    rotate_servo(camPitchAngle, camPitchServo)
+                else:
+                    # Mirror Control
+                    yawAngleNew = round(mirYawAngle - (2 * mirLastYawValue * SPEED))
+                    mirYawAngle = saturate_angle(yawAngleNew)
+                    rotate_servo(mirYawAngle, mirYawServo, True)
+                    pitchAngleNew = round(mirPitchAngle - (2 * mirLastPitchValue * SPEED))
+                    mirPitchAngle = saturate_angle(pitchAngleNew)
+                    rotate_servo(mirPitchAngle, mirPitchServo, True)
 
 try:
     # Setup the Servo Controller
@@ -398,6 +437,10 @@ try:
     imageProcessor = ImageProcessingWorker()
     imageProcessor.start()
     memLimit = 1200
+    
+    # Setup Incremental Movement Controller
+    incrementController = IncrementalControlWorker()
+    incrementController.start()
     
     while True:
         # Mem Check
