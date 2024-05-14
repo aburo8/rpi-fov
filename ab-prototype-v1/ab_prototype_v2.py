@@ -79,17 +79,6 @@ camYawServo = 18
 mirPitchServo = 19
 mirYawServo = 26
 
-# # Define & Setup GPIO pins for the servos
-# camPitchServo = 19
-# camYawServo = 19
-# mirPitchServo = 19
-# mirYawServo = 19
-
-# Servo's Being Moved in Manual Mode
-# This should be set to either camera or mirror
-manPitchServo = mirPitchServo
-manYawServo = mirYawServo
-
 gpio = pigpio.pi()
 gpio.set_mode(camPitchServo, pigpio.OUTPUT)
 gpio.set_mode(camYawServo, pigpio.OUTPUT)
@@ -110,9 +99,6 @@ def rotate_servo(angle, servoGPIO, invert=False):
     """
     Rotates the servo based on th specified angle
     """
-    # rGPIO
-#     dutyCycle = angle_to_duty_cycle(angle)
-#     servoPWM.ChangeDutyCycle(dutyCycle)  # Adjust the sleep time as needed
     # PIGPIO
     rotationAngle = angle
     if invert:
@@ -149,8 +135,6 @@ mirPitchAngle = 90
 mirYawAngle = 90
 mirLastYawValue = 0
 mirLastPitchValue = 0
-manPitchServo = camPitchServo
-manYawServo = camYawServo
 
 def saturate_angle(angle):
     """
@@ -168,11 +152,6 @@ class ServoController(Thread):
     """
     def __init__(self):
         Thread.__init__(self)
-        # Create a PWM instance - only for rGPIO
-#         self.pwmPitch = GPIO.PWM(pitchServo, 50)  # 50 Hz (20 ms PWM period)
-#         self.pwmPitch.start(angle_to_duty_cycle(90))
-#         self.pwmYaw = GPIO.PWM(yawServo, 50)
-#         self.pwmYaw.start(angle_to_duty_cycle(90))
         # PIGPIO - init servo's to centre
         # pigpio servo range 500-2500
         gpio.set_servo_pulsewidth(camPitchServo, 1300)
@@ -183,19 +162,10 @@ class ServoController(Thread):
     def run(self):
         # Control Pan/Tilt Mount
         global CONTROLLER_MODE, camYawAngle, camPitchAngle, camLastYawValue, camLastPitchValue, INCREMENTAL_CONTROL, CONTROL_PERIPHERAL
-        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
+        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
         for event in xboxController.read_loop():
             # An event as occured
             CONTROLLER_ACTION = True
-            
-            # Set Control Peripheral
-            if CONTROL_PERIPHERAL:
-                # Control the M
-                manYawServo = camYawServo
-                manPitchServo = camPitchServo
-            else:
-                manYawServo = mirYawServo
-                manPitchServo = mirPitchServo
             
             # Filter Control Input
             if event.type == evdev.ecodes.EV_ABS:
@@ -360,12 +330,6 @@ class ServoController(Thread):
                                 rotate_servo(camYawAngle, camYawServo)
                                 camPitchAngle = mirPitchAngle
                                 rotate_servo(camPitchAngle, camPitchServo, True)
-#                 elif event.code == evdev.ecodes.ABS_Y:
-#                     # Left Joystick can control Pitch on both sticks
-#                     # Normalise the range 0-65535 to 0-180
-#                     angle = (event.value / 65535.0) * 180
-#                     angleCorrected = np.abs(angle - 180) # Corrects angle based on orientation
-#                     rotate_servo(angleCorrected, self.pwmPitch)
                 
             elif event.type == evdev.ecodes.EV_KEY:
                 if event.code == evdev.ecodes.BTN_SOUTH:
@@ -472,7 +436,7 @@ class IncrementalControlWorker(Thread):
         
     def run(self):
         global CONTROLLER_MODE, camYawAngle, camPitchAngle, camLastYawValue, camLastPitchValue, INCREMENTAL_CONTROL, CONTROL_PERIPHERAL
-        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, manPitchServo, manYawServo, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
+        global mirYawAngle, mirPitchAngle, mirLastYawValue, mirLastPitchValue, camYawServo, camPitchServo, mirYawServo, mirPitchServo, CONTROLLER_ACTION
         
         while True:
             # Look at the previous readings and apply movement accordingly
@@ -525,8 +489,6 @@ try:
         
         # Process Image
         frameStack.put(im)
-#         if frameStack.qsize() >= 1000:
-#             frameStack = LifoQueue()
 
         # When using multi-threaded processing, we don't draw the face on the current frame.
         # Uncomment the following lines to sequentially process the images and draw in the rectangle
@@ -547,10 +509,3 @@ except KeyboardInterrupt:
 finally:
     cv2.destroyAllWindows()
     exit()
-    # Only needed for rGPIO        
-#     pwmPitch.stop()
-#     pwmYaw.stop()
-#     GPIO.cleanup()
-
-
-
