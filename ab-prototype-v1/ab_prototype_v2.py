@@ -137,6 +137,8 @@ mirPitchAngle = 90
 mirYawAngle = 90
 mirLastYawValue = 0
 mirLastPitchValue = 0
+AUTO_YAW_OFFSET = 70
+AUTO_PITCH_OFFSET = 30
 
 def saturate_angle(angle):
     """
@@ -367,8 +369,8 @@ def process_image(frame, isGray=False, draw=False, move=False):
                 rotate_servo(camYawAngle, camYawServo)
                 
                 # Shift Mirror
-                mirYawAngle = camYawAngle
-                rotate_servo(mirYawAngle, mirYawServo, True)
+                mirYawAngle = saturate_angle(mirYawAngle + math.copysign(5, dx))
+                rotate_servo(mirYawAngle, mirYawServo)
             
             if np.abs(dy) > 200:
                 # Shift 
@@ -377,7 +379,7 @@ def process_image(frame, isGray=False, draw=False, move=False):
                 
                                 
                 # Shift Mirror
-                mirPitchAngle = camPitchAngle
+                mirPitchAngle = saturate_angle(mirPitchAngle + math.copysign(5, dy))
                 rotate_servo(mirPitchAngle, mirPitchServo)
 
     if draw:
