@@ -140,14 +140,14 @@ mirLastPitchValue = 0
 AUTO_YAW_OFFSET = 70
 AUTO_PITCH_OFFSET = 30
 
-def saturate_angle(angle):
+def saturate_angle(angle, min=0, max=180):
     """
-    Saturate an angle between 0-180
+    Saturate an angle between min-max
     """
-    if angle > 180:
-        angle = 180
-    elif angle < 0:
-        angle = 0
+    if angle > max:
+        angle = max
+    elif angle < min:
+        angle = min
     return angle
     
 class ServoController(Thread):
@@ -236,7 +236,7 @@ class ServoController(Thread):
                         else:
                             # Mirror Control
                             pitchAngleNew = round(mirPitchAngle - (10 * val * SPEED))
-                            mirPitchAngle = saturate_angle(pitchAngleNew)
+                            mirPitchAngle = saturate_angle(pitchAngleNew, 45)
                             rotate_servo(mirPitchAngle, mirPitchServo, True)
                             mirLastPitchValue = val
                             
@@ -260,7 +260,7 @@ class ServoController(Thread):
                             # Mirror Control
                             rotate_servo(angleCorrected, mirPitchServo, True)
                             mirLastPitchValue = val
-                            mirPitchAngle = angleCorrected
+                            mirPitchAngle = saturate_angle(angleCorrected, 45)
                             if SYNC_CAM:
                                 rotate_servo(angleCorrected, camPitchServo, True)
                                 camLastPitchValue = val
@@ -281,7 +281,7 @@ class ServoController(Thread):
                         else:
                             # Mirror Control
                             pitchAngleNew = round(mirPitchAngle - (10 * val * SPEED))
-                            mirPitchAngle = saturate_angle(pitchAngleNew)
+                            mirPitchAngle = saturate_angle(pitchAngleNew, 45)
                             rotate_servo(mirPitchAngle, mirPitchServo, True)
                             mirLastPitchValue = val
                             
@@ -303,7 +303,7 @@ class ServoController(Thread):
                             # Mirror Control
                             rotate_servo(angleCorrected, mirPitchServo, True)
                             mirLastPitchValue = val
-                            mirPitchAngle = angleCorrected
+                            mirPitchAngle = saturate_angle(angleCorrected, 45)
                             if SYNC_CAM:
                                 rotate_servo(angleCorrected, camPitchServo, True)
                                 camLastPitchValue = val
@@ -379,7 +379,7 @@ def process_image(frame, isGray=False, draw=False, move=False):
                 
                                 
                 # Shift Mirror
-                mirPitchAngle = saturate_angle(mirPitchAngle + math.copysign(5, dy))
+                mirPitchAngle = saturate_angle(mirPitchAngle + math.copysign(5, dy), 45)
                 rotate_servo(mirPitchAngle, mirPitchServo)
 
     if draw:
@@ -437,7 +437,7 @@ class IncrementalControlWorker(Thread):
                         rotate_servo(mirYawAngle, mirYawServo, True)
                     elif (mirLastPitchValue < -0.25 or mirLastPitchValue > 0.25): 
                         pitchAngleNew = round(mirPitchAngle - (1 * mirLastPitchValue * SPEED))
-                        mirPitchAngle = saturate_angle(pitchAngleNew)
+                        mirPitchAngle = saturate_angle(pitchAngleNew, 45)
                         rotate_servo(mirPitchAngle, mirPitchServo, True)
                     
                     if SYNC_CAM:
