@@ -109,8 +109,90 @@ This manual explains the firmware architecture of the FOV Device. It is not exha
 
 ## Running the Code
 
-TODO: complete this section
+The program which is driving this Final prototype is the `ab_prototype_v2.py` script. The program which is was used for AB Prototype 2 can be seen in the `ab_prototype.py` file.
+
+To run this program on the Raspberry Pi, first install the following packages into your python environment -
+
+- evdev
+- pigpio
+
+Once installed the Python programs can be run on the Raspberry Pi. 
+
+### Final Prototype Code (ab_prototype_v2.py)
+
+When running `ab_prototype_v2.py`, there are various command line flags that can modify the way the program runs.
+
+`--headless` will run the program in a headless state. This means that no visual of the camera feed will be rendered.
+
+`--draw` will process image frames sequentially, and detected face bounding boxes onto the screen.
+
+`--sync_cam` will sync the camera pan/tilt assembly to the same position as the mirror. This worked well when the mirror was mounted further in front of the char, but results degraded after moving the mirror position. **This mode should only be used under advisement.**
+
+To start the program normally, run the following commands in a terminal window -
+
+```bash
+cd rpi-fov/ab-prototype-v1/
+python ab_prototype_v2.py # You can pass any additional command line flags here
+# Call -h flag for help.
+```
 
 ## Raspberry Pi Control Unit Setup
 
-TODO: complete this section
+To prepare the provision the Raspbery Pi control unit, the following actions must be taken:
+
+1. Controller Pairing
+2. Auto-Launch
+
+### Controller Pairing
+
+To pair an Xbox Controller input device with the Raspberry Pi Control Unit, first open a terminal window, then follow the steps below -
+
+```bash
+sudo bluetoothctl # This will open a Bluetooth Control Prompt
+
+scan on # This will begin Bluetooth scanning
+
+# Now put your Xbox controller into pairing mode by holding down the Xbox Logo button and the pairing button (located on the back of the controller next to the micro-usb connector)
+
+# Once in pairing mode you will see the Xbox Controller advertise itself on the Bluetooth terminal, note down it's MAC address
+
+# For the purposes of demonstration, assume my Xbox Controller has a MAC address of 5F:13:A1:C8:D5
+
+# Run the following commands - 
+pair 5F:13:A1:C8:D5 # Pair the Controller
+
+connect 5F:13:A1:C8:D5 # Connect to the Controller
+
+trust 5F:13:A1:C8:D5 # Trust the controller
+
+# The controller is now connected and is configured to automatically reconnect to this Raspberry Pi controller. Press `CTRL-D` to exit the Bluetooth prompt.
+```
+
+To test that the Bluetooth Controller is successfully connected run the `evtest` command from your terminal. You should see the Xbox controller appear as a listed input device. If you select the controller within `evtest` and move the joysticks, you will now see the HID events be printed to the display.
+
+### Auto-Launch 
+
+To configure the program to automatically launch when the raspberry pi is connected to power, a system service was added. Follow execute the following commands from the terminal to configure the program for auto-launch. 
+
+```bash
+# Change to code directory
+cd rpi-fov/ab-prototype-v1/
+
+# Copy the fov.service file to systemd
+cp fov.service /etc/systemd/system/fov.service
+
+# Add enable the fov.service (so it runs as a system service)
+sudo systemctl enable fov.service
+
+# Autostart is now configured
+```
+
+Since the prgoram runs as part of the system daemon, you can also control it using the following commands -
+
+```bash
+# To Start/Restart/Stop the Fov service
+sudo service fov {start|stop|restart}
+
+# To check the current status of the fov service
+systemctl stauts fov
+```
