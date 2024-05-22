@@ -6,6 +6,8 @@ FOV Expansion Device Prototype Developed by Alexander Burovanov.
 
 This is a user operating manual for the FOV Expansion System developed for the STARS NRM FOV project. The developed device is a camera controlled mirror system which expands the FOV of the user.
 
+![Final Prototype](assets/final_prototype.jpg)
+
 ### 1. Getting Started
 
 This project is an FoV expansion prototype for BIOE6901. To get started first ensure you have the following hardware ready:
