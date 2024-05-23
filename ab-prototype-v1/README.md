@@ -47,7 +47,7 @@ To assemble the device and mounting it to the chair follow the following steps:
 ![Wiring Connections](assets/wiring_connetions.jpg)
 ![Technical Pinout](assets/pinout.jpg)
 9. Connect the USB-C power cable to the Raspberry Pi Control Unit.
-10. Unfortunately, due to the custom installation nature of this device, we have had to allow for additional slack within the wiring harness so it can be mounted on different types of wheelchairs. Use the provided reusable cable ties to improve the wire management and securely mount the wiring harness to the device.
+10. Unfortunately, due to the custom installation nature of this device, we have had to allow for additional slack within the wiring harness so it can be mounted on different types of wheelchairs. Use the provided reusable cable ties to improve the wire management and securely mount the wiring harness to the device. The ribbon cable holder on the back of the control panel can also be used for additional cable management for the raspberry pi camera cable.
 
 At this stage the device is now securely mounted to the device and is ready for Power on, see [3. Powering On The Device](#3-powering-on-the-device).
 
