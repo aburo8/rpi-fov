@@ -23,6 +23,5 @@ For the user manual & code documentation regarding the prototype please see the 
 │   ├── mechanical_files - Mechanical Design Files
 │   ├── stack.py - Custom stack implementation
 │   ├── test-scripts - Test scripts verify functionality & debug
-│   └── user_manual.ipynb - Notebook version of the user manual (used for pretty PDF Export)
 └── ss_prototype_v1 - Shreya's Initial Prototype
 ```

@@ -15,6 +15,7 @@ This project is an FoV expansion prototype for BIOE6901. To get started first en
 - Mirror Arm (with wiring harness attached)
 ![Mirror Arm with Wiring Harness Attached](assets/miror_arm_with_wiring_harness.jpg)
 - Raspberry Pi Control Unit + Attached Raspberry Pi Camera Module
+![Raspberry Pi + Camera](assets/control_unit.jpg)
 - Rear Control Panel + Attached Camera Mount
 ![Rear Control Panel](assets/rear_control_panel.jpg)
 - System Wiring Harness (Attached to Mirror Arm and Camera Mount)
@@ -24,7 +25,9 @@ This project is an FoV expansion prototype for BIOE6901. To get started first en
 - 3 x Control Panel Mounting Straps
 ![Mounting Straps](assets/mounting_straps.jpg)
 - 1 x XBOX One Bluetooth Controller
-- 1 x USB-C Power Cable
+![Controller](assets/xbox_controller.jpg)
+- 1 x USB-C Power Cable + Inline Power Switch
+![Power Supply](assets/psu.jpg)
 
 *Note: these instructions assume that the latest version of the rpi-fov controller firmware have already been flashed to the device. For help flashing new firmware, see the [Software User Manual](#software-user-manual-engineers-only).*
 
